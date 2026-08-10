@@ -58,7 +58,7 @@ header { display: flex; align-items: flex-end; justify-content: space-between; g
 .tagline { margin: 4px 0 0; font-size: 12px; color: var(--text-sub); }
 .scores { display: flex; gap: 8px; }
 .score-box {
-  min-width: 76px;
+  min-width: 86px;
   background: var(--panel);
   border-radius: 8px;
   padding: 6px 10px;
@@ -67,6 +67,7 @@ header { display: flex; align-items: flex-end; justify-content: space-between; g
 }
 .score-label { display: block; font-size: 10px; letter-spacing: 2px; color: rgba(255,255,255,.75); text-transform: uppercase; }
 .score-value { display: block; font-size: 20px; font-weight: 700; color: #fff; line-height: 1.15; }
+.score-gamemax { display: block; font-size: 10px; color: rgba(255,255,255,.85); margin-top: 2px; line-height: 1.2; white-space: nowrap; }
 .score-box.glow { animation: glowPulse 0.9s ease; }
 @keyframes glowPulse {
   0% { box-shadow: 0 0 0 0 rgba(237,194,46,.9); }
@@ -287,10 +288,12 @@ footer.hint { margin-top: 12px; text-align: center; font-size: 11px; color: var(
       <div class="score-box" id="scoreBox">
         <span class="score-label">得分</span>
         <span class="score-value" id="score">0</span>
+        <span class="score-gamemax" id="gameMax">本局最高 0</span>
       </div>
       <div class="score-box" id="bestBox">
         <span class="score-label">最高</span>
         <span class="score-value" id="best">0</span>
+        <span class="score-gamemax">&nbsp;</span>
       </div>
     </div>
   </header>
@@ -359,6 +362,7 @@ let state = {
   tiles: [],          // {id, value, r, c, dead, el}
   score: 0,
   best: 0,
+  gameMax: 0,        // 本局达到过的最高方块（曾合成到的最大数字）
   won: false,
   over: false,
   started: false,
@@ -539,6 +543,15 @@ function floatScore(value, r, c) {
   setTimeout(() => el.remove(), 640);
 }
 
+/* ================= 本局最高 ================= */
+function updateGameMax() {
+  // 取当前棋盘最大块，刷新"本局最高"（只增不减，曾合成到的最大数字）
+  let m = 0;
+  for (const t of state.tiles) if (!t.dead && t.value > m) m = t.value;
+  if (m > state.gameMax) state.gameMax = m;
+  $('#gameMax').textContent = '本局最高 ' + state.gameMax;
+}
+
 /* ================= 分数 ================= */
 function animateScore(from, to) {
   const t0 = performance.now();
@@ -609,11 +622,6 @@ function applyAiSpeed() {
 }
 
 /* ================= 排行榜 ================= */
-function currentMaxTile() {
-  let m = 0;
-  for (const t of state.tiles) if (t.value > m) m = t.value;
-  return m;
-}
 function fmtDate(ts) {
   const d = new Date(ts);
   return (d.getMonth() + 1) + '-' + d.getDate();
@@ -623,7 +631,7 @@ function recordScore() {
   if (state.score <= 0) return;
   const entry = {
     score: state.score,
-    maxTile: currentMaxTile(),
+    maxTile: state.gameMax,   // 本局最高合成数字
     size: state.size,
     date: Date.now(),
   };
@@ -760,6 +768,7 @@ function finishMove() {
     state.over = true;
     setTimeout(showLose, 220);
   }
+  updateGameMax();
   moving = false;
   updateButtons();
 }
@@ -769,6 +778,7 @@ function pushHistory() {
   const snap = {
     tiles: state.tiles.map(t => ({ value: t.value, r: t.r, c: t.c })),
     score: state.score,
+    gameMax: state.gameMax,
   };
   state.history.push(snap);
   if (state.history.length > UNDO_LIMIT) state.history.shift();
@@ -778,9 +788,11 @@ function undo() {
   const snap = state.history.pop();
   clearTiles();
   state.score = snap.score;
+  state.gameMax = snap.gameMax;
   state.over = false;
   for (const t of snap.tiles) createTile(t.value, t.r, t.c);
   scoreEl.textContent = state.score;
+  updateGameMax();
   playSound('undo');
   updateButtons();
 }
@@ -789,6 +801,7 @@ function undo() {
 function newGame() {
   clearTiles();
   state.score = 0;
+  state.gameMax = 0;
   state.history = [];
   state.won = false;
   state.over = false;
@@ -798,6 +811,7 @@ function newGame() {
     for (let c = 0; c < state.size; c++)
       if (g[r][c]) createTile(g[r][c], r, c, 'tile-new');
   scoreEl.textContent = 0;
+  updateGameMax();
   updateButtons();
 }
 

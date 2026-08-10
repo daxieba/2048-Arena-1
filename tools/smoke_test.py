@@ -33,6 +33,11 @@ def main():
             "得分=0": "document.getElementById('score').textContent === '0'",
             "撤销按钮已禁用": "document.getElementById('btnUndo').disabled === true",
             "尺寸选择=4": "document.getElementById('selSize').value === '4'",
+            "本局最高初始显示": (
+                "(function(){ var g = state.gameMax;"
+                "var t = document.getElementById('gameMax').textContent;"
+                "return (g >= 2 && g <= 4) && t.indexOf('本局最高') === 0; })()"
+            ),
             "页面无需滚动": (
                 "document.documentElement.scrollHeight <= window.innerHeight"
             ),
@@ -134,6 +139,16 @@ def main():
                 hist_after is not None and hist_before is not None and hist_after >= hist_before + 1
             )
             win.evaluate_js("stopAi(); state.aiSpeed = 1")
+            # 本局最高：初始已在顶部 checks 验证；这里构造 512 块验证显示更新
+            win.evaluate_js(
+                "state.tiles = [{value:512,r:0,c:0,dead:false},{value:2,r:1,c:0,dead:false}];"
+                "updateGameMax();"
+            )
+            time.sleep(0.2)
+            results["本局最高更新为 512"] = (
+                win.evaluate_js("document.getElementById('gameMax').textContent === '本局最高 512'")
+            )
+            win.evaluate_js("state.score = 0; state.tiles = []; state.gameMax = 0;")
             # 排行榜：初始渲染 5 行空位；模拟一局成绩后应出现记录且排序正确
             results["玩家榜初始 5 行"] = (
                 win.evaluate_js("document.querySelectorAll('#rankPlayer .rank-row').length === 5")
