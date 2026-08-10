@@ -123,9 +123,13 @@ function newGrid(size) {
  * 供"自动玩"功能使用；纯函数，无随机，可在 Node 中测试
  * ========================================================= */
 
-/* 按棋盘尺寸决定 Expectimax 搜索深度（大棋盘分支多，深度相应调浅；
-   实测各尺寸单次决策均 < 3ms，对 3 秒/步的自动玩完全无压力） */
-const AI_DEPTH = { 3: 5, 4: 4, 5: 3, 6: 2, 7: 1, 8: 1 };
+/* 按棋盘尺寸决定 Expectimax 搜索深度（大棋盘分支多，深度相应调浅）。
+   两档强度：normal 普通 / master 大师（每档深度 +1）。
+   实测 master 最慢约 13ms（4×4 depth5），对 1.5 秒/步的自动玩毫无压力。 */
+const AI_DEPTH = {
+  normal: { 3: 5, 4: 4, 5: 3, 6: 2, 7: 1, 8: 1 },
+  master: { 3: 6, 4: 5, 5: 4, 6: 3, 7: 2, 8: 2 },
+};
 const SPAWN_2 = 0.9;  // 与 spawnRandom 保持一致：90% 生成 2
 
 /**
@@ -209,9 +213,11 @@ function expectimax(grid, depth, playerTurn) {
   return exp / cells.length;
 }
 
-/** 返回 AI 认为最优的移动方向；所有方向都无法移动时返回 null。 */
-function aiBestMove(grid) {
-  const depth = AI_DEPTH[grid.length] !== undefined ? AI_DEPTH[grid.length] : 2;
+/** 返回 AI 认为最优的移动方向；所有方向都无法移动时返回 null。
+ *  @param {string} [level] 'normal' 普通档 / 'master' 大师档，默认 normal */
+function aiBestMove(grid, level) {
+  const table = AI_DEPTH[level] || AI_DEPTH.normal;
+  const depth = table[grid.length] !== undefined ? table[grid.length] : 2;
   const dirs = ['left', 'right', 'up', 'down'];
   let bestDir = null;
   let bestVal = -Infinity;

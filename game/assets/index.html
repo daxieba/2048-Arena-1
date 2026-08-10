@@ -112,7 +112,7 @@ select.sel-size option { background: var(--modal-card); color: var(--text); }
 .board-wrap { display: flex; justify-content: center; }
 #board {
   position: relative;
-  width: min(92vw, 460px, calc(100vh - 400px));
+  width: min(92vw, 460px, calc(100vh - 410px));
   aspect-ratio: 1;
   background: var(--panel);
   border-radius: 10px;
@@ -297,6 +297,10 @@ footer.hint { margin-top: 12px; text-align: center; font-size: 11px; color: var(
 
   <div class="toolbar">
     <button class="btn btn-primary" id="btnAi">🤖 自动玩</button>
+    <select class="sel-size sel-ai" id="selAiLevel" title="AI 强度">
+      <option value="normal">AI: 普通</option>
+      <option value="master">AI: 大师</option>
+    </select>
     <button class="btn" id="btnNew">🔄 新游戏</button>
     <button class="btn" id="btnUndo" disabled>↩ 撤销</button>
     <button class="btn btn-icon" id="btnSound" title="音效开关">🔊</button>
@@ -357,6 +361,7 @@ let state = {
   sound: true,
   target: 2048,
   aiOn: false,
+  aiLevel: 'normal',  // 'normal' 普通 / 'master' 大师
   leaderboard: { player: [], ai: [] },  // 各存前 5 条 {score, maxTile, size, date}
 };
 let tileSeq = 0;
@@ -383,7 +388,10 @@ function bridgeApi() {
 }
 
 function persist() {
-  const data = { size: state.size, best: state.best, sound: state.sound, leaderboard: state.leaderboard };
+  const data = {
+    size: state.size, best: state.best, sound: state.sound,
+    aiLevel: state.aiLevel, leaderboard: state.leaderboard,
+  };
   const api = bridgeApi();
   if (api) {
     api.save_state(data);
@@ -557,7 +565,7 @@ function updateButtons() {
 /* ================= 自动玩（AI） ================= */
 function aiStep() {
   if (!state.aiOn || moving || state.over) return;
-  const dir = aiBestMove(toGrid());
+  const dir = aiBestMove(toGrid(), state.aiLevel);
   if (dir) doMove(dir);
   // dir 为 null 说明棋盘已死局：finishMove 的胜负判定已弹出结束框，这里静默等待即可
 }
@@ -566,7 +574,8 @@ function startAi() {
   const btn = $('#btnAi');
   btn.textContent = '⏹ 停止';
   btn.classList.add('ai-running');
-  toast('🤖 已开启自动玩，每 1.5 秒走一步');
+  $('#selAiLevel').disabled = true;
+  toast('🤖 已开启自动玩（' + (state.aiLevel === 'master' ? '大师' : '普通') + '），每 1.5 秒走一步');
   updateButtons();
   clearInterval(aiTimer);
   aiTimer = setInterval(aiStep, AI_INTERVAL);
@@ -578,6 +587,7 @@ function stopAi() {
   const btn = $('#btnAi');
   btn.textContent = '🤖 自动玩';
   btn.classList.remove('ai-running');
+  $('#selAiLevel').disabled = false;
   updateButtons();
 }
 
@@ -831,7 +841,8 @@ function showHelp() {
     '<li>目标：合成 <b>' + state.target + '</b>' + (state.size === 3 ? '（3×3 棋盘目标为 1024）' : '') + '。</li>' +
     '<li>无空格且无法合并时游戏结束；可用 <b>撤销</b> 挽救一步。</li>' +
     '<li>操作：<b>方向键 / WASD / 滑动 / 屏幕按钮</b>，<b>Ctrl+Z</b> 撤销。</li>' +
-    '<li><b>🤖 自动玩</b>：点击按钮由 AI 每 1.5 秒自动走一步，点击"停止"恢复手动。</li>' +
+    '<li><b>🤖 自动玩</b>：点击按钮由 AI 每 1.5 秒自动走一步，点击"停止"恢复手动；</li>' +
+    '<li>自动玩前可切换 <b>AI 强度</b>（普通 / 大师），大师档思考更深、成绩更好。</li>' +
     '</ul>' +
     '<div class="modal-actions"><button class="btn btn-primary" data-close>知道了</button></div>'
   );
@@ -892,6 +903,11 @@ $('#btnNew').addEventListener('click', () => {
 $('#btnUndo').addEventListener('click', undo);
 $('#btnAi').addEventListener('click', () => state.aiOn ? stopAi() : startAi());
 $('#btnClearRank').addEventListener('click', clearLeaderboard);
+$('#selAiLevel').addEventListener('change', e => {
+  state.aiLevel = e.target.value === 'master' ? 'master' : 'normal';
+  persist();
+  toast('AI 强度：' + (state.aiLevel === 'master' ? '大师' : '普通'));
+});
 $('#btnHelp').addEventListener('click', showHelp);
 $('#btnSound').addEventListener('click', () => { setSound(!state.sound); if (state.sound) playSound('undo'); });
 
@@ -927,6 +943,7 @@ function init() {
   $('#selSize').value = state.size;
   $('#goalText').textContent = state.target;
   setSound(state.sound);
+  $('#selAiLevel').value = state.aiLevel;
   bestEl.textContent = state.best;
   buildBoard();
   renderLeaderboard();
@@ -954,6 +971,7 @@ whenBridgeReady(function () {
       if (SIZES.includes(data.size)) state.size = data.size;
       if (typeof data.best === 'number') state.best = data.best;
       if (typeof data.sound === 'boolean') state.sound = data.sound;
+      if (data.aiLevel === 'normal' || data.aiLevel === 'master') state.aiLevel = data.aiLevel;
       if (data.leaderboard && typeof data.leaderboard === 'object') {
         const clean = (arr) => Array.isArray(arr) ? arr.slice(0, 5) : [];
         state.leaderboard = {

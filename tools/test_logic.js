@@ -210,5 +210,51 @@ test('aiScore 对更优局面给更高分', () => {
   assert.ok(aiScore(open) > aiScore(full));
 });
 
+/* ---------- AI 强度档位 ---------- */
+test('AI_DEPTH：大师档每尺寸深度不低于普通档', () => {
+  for (const size of [3, 4, 5, 6, 7, 8]) {
+    assert.ok(AI_DEPTH.master[size] >= AI_DEPTH.normal[size],
+      size + 'x' + size + ' master(' + AI_DEPTH.master[size] + ') < normal(' + AI_DEPTH.normal[size] + ')');
+  }
+});
+
+test('aiBestMove 支持 normal / master 档位且都返回合法方向', () => {
+  const g = newGrid(4);
+  for (const level of ['normal', 'master', undefined]) {
+    const dir = aiBestMove(g, level);
+    assert.ok(['left', 'right', 'up', 'down'].includes(dir));
+    assert.strictEqual(move(g, dir).moved, true);
+  }
+});
+
+test('aiBestMove 大师档各尺寸决策快速（<500ms）', () => {
+  for (const size of [3, 4, 5, 6, 7, 8]) {
+    const g = newGrid(size);
+    const t0 = Date.now();
+    const dir = aiBestMove(g, 'master');
+    const dt = Date.now() - t0;
+    assert.ok(dt < 500, size + 'x' + size + ' master 决策耗时 ' + dt + 'ms 过长');
+    if (dir) assert.strictEqual(move(g, dir).moved, true);
+  }
+});
+
+test('AI 大师档 4x4 能合出 256', () => {
+  let best = 0;
+  for (let game = 0; game < 3; game++) {
+    let g = newGrid(4);
+    let maxTile = 0;
+    for (let i = 0; i < 2000; i++) {
+      if (!canMove(g)) break;
+      const dir = aiBestMove(g, 'master');
+      if (!dir) break;
+      const r = move(g, dir);
+      g = spawnRandom(r.grid);
+      for (const row of g) for (const v of row) if (v > maxTile) maxTile = v;
+    }
+    if (maxTile > best) best = maxTile;
+  }
+  assert.ok(best >= 256, 'AI 大师档最好成绩只有 ' + best + '，强度不足');
+});
+
 console.log('\n结果：' + passed + ' 通过，' + failed + ' 失败');
 process.exit(failed ? 1 : 0);

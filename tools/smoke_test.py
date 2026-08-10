@@ -71,7 +71,7 @@ def main():
             results["撤销后 tile 数=2"] = (
                 win.evaluate_js("document.querySelectorAll('.tile').length === 2")
             )
-            # AI 自动玩：开启后 3 秒一次移动，等 4 秒应至少发生一次移动（历史非空）
+            # AI 自动玩：开启后 1.5 秒一次移动，等 4 秒应至少发生一次移动（历史非空）
             win.evaluate_js("startAi()")
             time.sleep(1)
             results["AI 按钮变为停止"] = (
@@ -87,6 +87,31 @@ def main():
             results["AI 停止后按钮恢复"] = (
                 win.evaluate_js("!document.getElementById('btnAi').classList.contains('ai-running')")
             )
+            # AI 强度档位：切换大师档应生效，且自动玩期间选择器被禁用
+            win.evaluate_js(
+                "document.getElementById('selAiLevel').value = 'master';"
+                "document.getElementById('selAiLevel').dispatchEvent(new Event('change'))"
+            )
+            time.sleep(0.2)
+            results["AI 强度切换为大师"] = (
+                win.evaluate_js("state.aiLevel === 'master'")
+            )
+            win.evaluate_js("startAi()")
+            time.sleep(0.3)
+            results["AI 运行中选择器禁用"] = (
+                win.evaluate_js("document.getElementById('selAiLevel').disabled")
+            )
+            time.sleep(3)
+            ai_hist2 = eval_js_retry(win, "state.history.length")
+            results["大师档 AI 正常移动(hist=%r)" % ai_hist2] = (
+                ai_hist2 is not None and ai_hist2 >= 1
+            )
+            win.evaluate_js("stopAi()")
+            time.sleep(0.2)
+            results["大师档选择器启用恢复"] = (
+                win.evaluate_js("!document.getElementById('selAiLevel').disabled")
+            )
+            win.evaluate_js("state.aiLevel = 'normal'")
             # 排行榜：初始渲染 5 行空位；模拟一局成绩后应出现记录且排序正确
             results["玩家榜初始 5 行"] = (
                 win.evaluate_js("document.querySelectorAll('#rankPlayer .rank-row').length === 5")
@@ -125,8 +150,8 @@ def main():
     win = webview.create_window(
         "2048 冒烟测试",
         os.path.join(ROOT, "game", "assets", "index.html"),
-        width=520,
-        height=780,
+        width=540,
+        height=800,
     )
     webview.start(check, win, debug=False, gui="edgechromium")
 
