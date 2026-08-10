@@ -298,8 +298,13 @@ footer.hint { margin-top: 12px; text-align: center; font-size: 11px; color: var(
   <div class="toolbar">
     <button class="btn btn-primary" id="btnAi">🤖 自动玩</button>
     <select class="sel-size sel-ai" id="selAiLevel" title="AI 强度">
-      <option value="normal">AI: 普通</option>
-      <option value="master">AI: 大师</option>
+      <option value="normal">强度 普通</option>
+      <option value="master">强度 大师</option>
+    </select>
+    <select class="sel-size sel-ai" id="selAiSpeed" title="AI 移动速度">
+      <option value="0.5">速度 0.5s</option>
+      <option value="0.75">速度 0.75s</option>
+      <option value="1">速度 1s</option>
     </select>
     <button class="btn" id="btnNew">🔄 新游戏</button>
     <button class="btn" id="btnUndo" disabled>↩ 撤销</button>
@@ -362,13 +367,13 @@ let state = {
   target: 2048,
   aiOn: false,
   aiLevel: 'normal',  // 'normal' 普通 / 'master' 大师
+  aiSpeed: 1,         // 移动间隔（秒）：0.5 / 0.75 / 1
   leaderboard: { player: [], ai: [] },  // 各存前 5 条 {score, maxTile, size, date}
 };
 let tileSeq = 0;
 let moving = false;
 let pendingMerges = [];
 let aiTimer = null;
-const AI_INTERVAL = 1500;  // 自动玩：每 1.5 秒移动一次
 
 const $ = s => document.querySelector(s);
 const boardEl = $('#board');
@@ -390,7 +395,7 @@ function bridgeApi() {
 function persist() {
   const data = {
     size: state.size, best: state.best, sound: state.sound,
-    aiLevel: state.aiLevel, leaderboard: state.leaderboard,
+    aiLevel: state.aiLevel, aiSpeed: state.aiSpeed, leaderboard: state.leaderboard,
   };
   const api = bridgeApi();
   if (api) {
@@ -575,10 +580,10 @@ function startAi() {
   btn.textContent = '⏹ 停止';
   btn.classList.add('ai-running');
   $('#selAiLevel').disabled = true;
-  toast('🤖 已开启自动玩（' + (state.aiLevel === 'master' ? '大师' : '普通') + '），每 1.5 秒走一步');
+  toast('🤖 已开启自动玩（' + (state.aiLevel === 'master' ? '大师' : '普通') + '，每 ' + state.aiSpeed + ' 秒一步）');
   updateButtons();
   clearInterval(aiTimer);
-  aiTimer = setInterval(aiStep, AI_INTERVAL);
+  aiTimer = setInterval(aiStep, state.aiSpeed * 1000);
 }
 function stopAi() {
   state.aiOn = false;
@@ -589,6 +594,18 @@ function stopAi() {
   btn.classList.remove('ai-running');
   $('#selAiLevel').disabled = false;
   updateButtons();
+}
+/** 切换 AI 速度：AI 运行中立即生效（重启定时器），否则下次启动生效 */
+function applyAiSpeed() {
+  const s = parseFloat($('#selAiSpeed').value);
+  if (![0.5, 0.75, 1].includes(s)) return;
+  state.aiSpeed = s;
+  persist();
+  if (state.aiOn) {
+    clearInterval(aiTimer);
+    aiTimer = setInterval(aiStep, s * 1000);
+  }
+  toast('AI 速度：' + s + ' 秒/步');
 }
 
 /* ================= 排行榜 ================= */
@@ -841,7 +858,7 @@ function showHelp() {
     '<li>目标：合成 <b>' + state.target + '</b>' + (state.size === 3 ? '（3×3 棋盘目标为 1024）' : '') + '。</li>' +
     '<li>无空格且无法合并时游戏结束；可用 <b>撤销</b> 挽救一步。</li>' +
     '<li>操作：<b>方向键 / WASD / 滑动 / 屏幕按钮</b>，<b>Ctrl+Z</b> 撤销。</li>' +
-    '<li><b>🤖 自动玩</b>：点击按钮由 AI 每 1.5 秒自动走一步，点击"停止"恢复手动；</li>' +
+    '<li><b>🤖 自动玩</b>：点击按钮由 AI 自动走棋，可随时停止；移动速度可选 <b>0.5s / 0.75s / 1s</b>，运行中也能随时调速；</li>' +
     '<li>自动玩前可切换 <b>AI 强度</b>（普通 / 大师），大师档思考更深、成绩更好。</li>' +
     '</ul>' +
     '<div class="modal-actions"><button class="btn btn-primary" data-close>知道了</button></div>'
@@ -908,6 +925,7 @@ $('#selAiLevel').addEventListener('change', e => {
   persist();
   toast('AI 强度：' + (state.aiLevel === 'master' ? '大师' : '普通'));
 });
+$('#selAiSpeed').addEventListener('change', applyAiSpeed);
 $('#btnHelp').addEventListener('click', showHelp);
 $('#btnSound').addEventListener('click', () => { setSound(!state.sound); if (state.sound) playSound('undo'); });
 
@@ -944,6 +962,7 @@ function init() {
   $('#goalText').textContent = state.target;
   setSound(state.sound);
   $('#selAiLevel').value = state.aiLevel;
+  $('#selAiSpeed').value = String(state.aiSpeed);
   bestEl.textContent = state.best;
   buildBoard();
   renderLeaderboard();
@@ -972,6 +991,7 @@ whenBridgeReady(function () {
       if (typeof data.best === 'number') state.best = data.best;
       if (typeof data.sound === 'boolean') state.sound = data.sound;
       if (data.aiLevel === 'normal' || data.aiLevel === 'master') state.aiLevel = data.aiLevel;
+      if ([0.5, 0.75, 1].includes(data.aiSpeed)) state.aiSpeed = data.aiSpeed;
       if (data.leaderboard && typeof data.leaderboard === 'object') {
         const clean = (arr) => Array.isArray(arr) ? arr.slice(0, 5) : [];
         state.leaderboard = {

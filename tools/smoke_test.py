@@ -112,6 +112,28 @@ def main():
                 win.evaluate_js("!document.getElementById('selAiLevel').disabled")
             )
             win.evaluate_js("state.aiLevel = 'normal'")
+            # AI 速度档位：切到 0.5s 应生效；AI 运行中调速立即生效（0.5s 间隔下 1.2 秒应再走 ≥1 步）
+            win.evaluate_js(
+                "document.getElementById('selAiSpeed').value = '0.5';"
+                "document.getElementById('selAiSpeed').dispatchEvent(new Event('change'))"
+            )
+            time.sleep(0.2)
+            results["AI 速度切换为 0.5"] = (
+                win.evaluate_js("state.aiSpeed === 0.5")
+            )
+            hist_before = win.evaluate_js("state.history.length")
+            win.evaluate_js("startAi()")
+            time.sleep(0.8)
+            win.evaluate_js(
+                "document.getElementById('selAiSpeed').value = '0.5';"
+                "document.getElementById('selAiSpeed').dispatchEvent(new Event('change'))"
+            )
+            time.sleep(1.2)
+            hist_after = win.evaluate_js("state.history.length")
+            results["0.5s 运行中调速步数增加(%r->%r)" % (hist_before, hist_after)] = (
+                hist_after is not None and hist_before is not None and hist_after >= hist_before + 1
+            )
+            win.evaluate_js("stopAi(); state.aiSpeed = 1")
             # 排行榜：初始渲染 5 行空位；模拟一局成绩后应出现记录且排序正确
             results["玩家榜初始 5 行"] = (
                 win.evaluate_js("document.querySelectorAll('#rankPlayer .rank-row').length === 5")

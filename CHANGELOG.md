@@ -2,6 +2,16 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [v0.3.0] - 2026-08-10
+
+### 新增
+- **AI 速度档位**：移动间隔可选 **0.5s / 0.75s / 1s** 三档（原固定 1.5s）
+- **运行中实时调速**：AI 自动玩期间切换速度立即生效，无需停止
+- **AI 速度持久化**：速度选择随偏好保存
+
+### 测试
+- 冒烟测试新增：速度切换生效、0.5s 运行中调速步数增长验证
+
 ## [v0.2.0] - 2026-08-10
 
 ### 新增
@@ -39,5 +49,6 @@
 - 修复新方块从左上角"飞入"的动画问题（定位与缩放分层，先定位后插入 DOM）
 - 修复不同窗口尺寸下的滚动条问题（棋盘自适应高度）
 
+[v0.3.0]: https://github.com/daxieba/2048-Arena-1/releases/tag/v0.3.0
 [v0.2.0]: https://github.com/daxieba/2048-Arena-1/releases/tag/v0.2.0
 [v0.1.0]: https://github.com/daxieba/2048-Arena-1/releases/tag/v0.1.0
